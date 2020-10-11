@@ -1,6 +1,6 @@
 use crate::{
     body::BoxBody,
-    codec::{encode_server, Codec, Streaming},
+    codec::{encode_server, Codec, Compression, Decompression, Streaming},
     interceptor::Interceptor,
     server::{ClientStreamingService, ServerStreamingService, StreamingService, UnaryService},
     Code, Request, Status,
@@ -71,20 +71,22 @@ where
             Ok(r) => r,
             Err(status) => {
                 return self
-                    .map_response::<stream::Once<future::Ready<Result<T::Encode, Status>>>>(Err(
-                        status,
-                    ));
+                    .map_response::<stream::Once<future::Ready<Result<T::Encode, Status>>>>(
+                        Err(status),
+                        Compression::disabled(),
+                    );
             }
         };
 
         let request = t!(self.intercept_request(request));
+        let compression = Compression::response_from_metadata(request.metadata());
 
         let response = service
             .call(request)
             .await
             .map(|r| r.map(|m| stream::once(future::ok(m))));
 
-        self.map_response(response)
+        self.map_response(response, compression)
     }
 
     /// Handle a server side streaming request.
@@ -102,15 +104,16 @@ where
         let request = match self.map_request_unary(req).await {
             Ok(r) => r,
             Err(status) => {
-                return self.map_response::<S::ResponseStream>(Err(status));
+                return self
+                    .map_response::<S::ResponseStream>(Err(status), Compression::disabled());
             }
         };
 
         let request = t!(self.intercept_request(request));
-
+        let compression = Compression::response_from_metadata(request.metadata());
         let response = service.call(request).await;
 
-        self.map_response(response)
+        self.map_response(response, compression)
     }
 
     /// Handle a client side streaming gRPC request.
@@ -126,11 +129,12 @@ where
     {
         let request = self.map_request_streaming(req);
         let request = t!(self.intercept_request(request));
+        let compression = Compression::response_from_metadata(request.metadata());
         let response = service
             .call(request)
             .await
             .map(|r| r.map(|m| stream::once(future::ok(m))));
-        self.map_response(response)
+        self.map_response(response, compression)
     }
 
     /// Handle a bi-directional streaming gRPC request.
@@ -147,8 +151,9 @@ where
     {
         let request = self.map_request_streaming(req);
         let request = t!(self.intercept_request(request));
+        let compression = Compression::response_from_metadata(request.metadata());
         let response = service.call(request).await;
-        self.map_response(response)
+        self.map_response(response, compression)
     }
 
     async fn map_request_unary<B>(
@@ -160,7 +165,8 @@ where
         B::Error: Into<crate::Error> + Send,
     {
         let (parts, body) = request.into_parts();
-        let stream = Streaming::new_request(self.codec.decoder(), body);
+        let decompression = Decompression::from_headers(&parts.headers);
+        let stream = Streaming::new_request(self.codec.decoder(), body, decompression);
 
         futures_util::pin_mut!(stream);
 
@@ -186,12 +192,16 @@ where
         B: Body + Send + Sync + 'static,
         B::Error: Into<crate::Error> + Send,
     {
-        Request::from_http(request.map(|body| Streaming::new_request(self.codec.decoder(), body)))
+        let decompression = Decompression::from_headers(request.headers());
+        Request::from_http(
+            request.map(|body| Streaming::new_request(self.codec.decoder(), body, decompression)),
+        )
     }
 
     fn map_response<B>(
         &mut self,
         response: Result<crate::Response<B>, Status>,
+        compression: Compression,
     ) -> http::Response<BoxBody>
     where
         B: TryStream<Ok = T::Encode, Error = Status> + Send + Sync + 'static,
@@ -205,8 +215,9 @@ where
                     http::header::CONTENT_TYPE,
                     http::header::HeaderValue::from_static("application/grpc"),
                 );
+                compression.set_headers(&mut parts.headers, false);
 
-                let body = encode_server(self.codec.encoder(), body.into_stream());
+                let body = encode_server(self.codec.encoder(), body.into_stream(), compression);
 
                 http::Response::from_parts(parts, BoxBody::new(body))
             }
