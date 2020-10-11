@@ -1,7 +1,7 @@
 use crate::{
     body::{Body, BoxBody},
     client::GrpcService,
-    codec::{encode_client, Codec, Streaming},
+    codec::{encode_client, Codec, Compression, Decompression, Streaming},
     interceptor::Interceptor,
     Code, Request, Response, Status,
 };
@@ -163,11 +163,13 @@ impl<T> Grpc<T> {
 
         let uri = Uri::from_parts(parts).expect("path_and_query only is valid Uri");
 
+        let compression = Compression::disabled();
         let request = request
-            .map(|s| encode_client(codec.encoder(), s))
+            .map(|s| encode_client(codec.encoder(), s, compression.clone()))
             .map(BoxBody::new);
 
         let mut request = request.into_http(uri);
+        compression.set_headers(request.headers_mut(), true);
 
         // Add the gRPC related HTTP headers
         request
@@ -200,9 +202,10 @@ impl<T> Grpc<T> {
             true
         };
 
+        let decompression = Decompression::from_headers(response.headers());
         let response = response.map(|body| {
             if expect_additional_trailers {
-                Streaming::new_response(codec.decoder(), body, status_code)
+                Streaming::new_response(codec.decoder(), body, status_code, decompression)
             } else {
                 Streaming::new_empty(codec.decoder(), body)
             }
