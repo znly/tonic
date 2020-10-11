@@ -6,24 +6,29 @@ use std::{
     pin::Pin,
     task::{Context, Poll},
 };
-use tonic::{codec::DecodeBuf, codec::Decoder, Status, Streaming};
+use tonic::{codec::DecodeBuf, codec::Decoder, codec::Decompression, Status, Streaming};
 
 macro_rules! bench {
     ($name:ident, $message_size:expr, $chunk_size:expr, $message_count:expr) => {
+        bench!($name, $message_size, $chunk_size, $message_count, None);
+    };
+    ($name:ident, $message_size:expr, $chunk_size:expr, $message_count:expr, $encoding:expr) => {
         fn $name(b: &mut Bencher) {
             let mut rt = tokio::runtime::Builder::new()
                 .basic_scheduler()
                 .build()
                 .expect("runtime");
 
-            let payload = make_payload($message_size, $message_count);
+            let payload = make_payload($message_size, $message_count, $encoding);
             let body = MockBody::new(payload, $chunk_size);
             b.bytes = body.len() as u64;
 
             b.iter(|| {
                 rt.block_on(async {
                     let decoder = MockDecoder::new($message_size);
-                    let mut stream = Streaming::new_request(decoder, body.clone());
+
+                    let decompression = Decompression::from_encoding($encoding);
+                    let mut stream = Streaming::new_request(decoder, body.clone(), decompression);
 
                     let mut count = 0;
                     while let Some(msg) = stream.message().await.unwrap() {
@@ -108,15 +113,38 @@ impl Decoder for MockDecoder {
     }
 }
 
-fn make_payload(message_length: usize, message_count: usize) -> Bytes {
+fn make_payload(message_length: usize, message_count: usize, encoding: Option<&str>) -> Bytes {
     let mut buf = BytesMut::new();
 
+    let raw_msg = vec![97u8; message_length];
+
+    let msg_buf = match encoding {
+        #[cfg(feature = "gzip")]
+        Some(encoding) if encoding == "gzip" => {
+            use bytes::buf::BufMutExt;
+            let mut reader =
+                flate2::read::GzEncoder::new(&raw_msg[..], flate2::Compression::best());
+            let mut writer = BytesMut::new().writer();
+
+            std::io::copy(&mut reader, &mut writer).expect("copy");
+            writer.into_inner()
+        }
+        None => {
+            let mut msg_buf = BytesMut::new();
+            msg_buf.put(&raw_msg[..]);
+            msg_buf
+        }
+        Some(encoding) => panic!("Encoding {} isn't supported", encoding),
+    };
+
     for _ in 0..message_count {
-        let msg = vec![97u8; message_length];
-        buf.reserve(msg.len() + 5);
-        buf.put_u8(0);
-        buf.put_u32(msg.len() as u32);
-        buf.put(&msg[..]);
+        buf.reserve(msg_buf.len() + 5);
+        buf.put_u8(match encoding {
+            Some(_) => 1,
+            None => 0,
+        });
+        buf.put_u32(msg_buf.len() as u32);
+        buf.put(&msg_buf[..]);
     }
 
     buf.freeze()
@@ -137,6 +165,21 @@ bench!(message_count_1, 500, 505, 1);
 bench!(message_count_10, 500, 505, 10);
 bench!(message_count_20, 500, 505, 20);
 
+// gzip change body chunk size only
+bench!(chunk_size_100_gzip, 1_000, 100, 1, Some("gzip"));
+bench!(chunk_size_500_gzip, 1_000, 500, 1, Some("gzip"));
+bench!(chunk_size_1005_gzip, 1_000, 1_005, 1, Some("gzip"));
+
+// gzip change message size only
+bench!(message_size_1k_gzip, 1_000, 1_005, 2, Some("gzip"));
+bench!(message_size_5k_gzip, 5_000, 1_005, 2, Some("gzip"));
+bench!(message_size_10k_gzip, 10_000, 1_005, 2, Some("gzip"));
+
+// gzip change message count only
+bench!(message_count_1_gzip, 500, 505, 1, Some("gzip"));
+bench!(message_count_10_gzip, 500, 505, 10, Some("gzip"));
+bench!(message_count_20_gzip, 500, 505, 20, Some("gzip"));
+
 benchmark_group!(chunk_size, chunk_size_100, chunk_size_500, chunk_size_1005);
 
 benchmark_group!(
@@ -153,4 +196,36 @@ benchmark_group!(
     message_count_20
 );
 
+benchmark_group!(
+    chunk_size_gzip,
+    chunk_size_100_gzip,
+    chunk_size_500_gzip,
+    chunk_size_1005_gzip
+);
+
+benchmark_group!(
+    message_size_gzip,
+    message_size_1k_gzip,
+    message_size_5k_gzip,
+    message_size_10k_gzip
+);
+
+benchmark_group!(
+    message_count_gzip,
+    message_count_1_gzip,
+    message_count_10_gzip,
+    message_count_20_gzip
+);
+
+#[cfg(feature = "gzip")]
+benchmark_main!(
+    chunk_size,
+    message_size,
+    message_count,
+    chunk_size_gzip,
+    message_size_gzip,
+    message_count_gzip
+);
+
+#[cfg(not(feature = "gzip"))]
 benchmark_main!(chunk_size, message_size, message_count);
