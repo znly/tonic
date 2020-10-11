@@ -4,6 +4,7 @@
 //! and a protobuf codec based on prost.
 
 mod buffer;
+mod compression;
 mod decode;
 mod encode;
 #[cfg(feature = "prost")]
@@ -11,6 +12,9 @@ mod prost;
 
 use std::io;
 
+pub(crate) use self::compression::Compression;
+#[doc(hidden)]
+pub use self::compression::Decompression;
 pub use self::decode::Streaming;
 pub(crate) use self::encode::{encode_client, encode_server};
 #[cfg(feature = "prost")]
