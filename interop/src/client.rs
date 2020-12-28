@@ -151,8 +151,14 @@ pub async fn server_streaming(client: &mut TestClient, assertions: &mut Vec<Test
 }
 
 pub async fn ping_pong(client: &mut TestClient, assertions: &mut Vec<TestAssertion>) {
-    let (tx, rx) = mpsc::unbounded_channel();
+    let (tx, mut rx) = mpsc::unbounded_channel();
     tx.send(make_ping_pong_request(0)).unwrap();
+
+    let rx = async_stream::stream! {
+        while let Some(item) = rx.recv().await {
+            yield item;
+        }
+    };
 
     let result = client.full_duplex_call(Request::new(rx)).await;
 

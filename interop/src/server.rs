@@ -72,7 +72,7 @@ impl pb::test_service_server::TestService for TestService {
 
         let stream = try_stream! {
             for param in response_parameters {
-                tokio::time::delay_for(Duration::from_micros(param.interval_us as u64)).await;
+                tokio::time::sleep(Duration::from_micros(param.interval_us as u64)).await;
 
                 let payload = crate::server_payload(param.size as usize);
                 yield StreamingOutputCallResponse { payload: Some(payload) };
@@ -127,7 +127,7 @@ impl pb::test_service_server::TestService for TestService {
                     }
 
                     for param in msg.response_parameters {
-                        tokio::time::delay_for(Duration::from_micros(param.interval_us as u64)).await;
+                        tokio::time::sleep(Duration::from_micros(param.interval_us as u64)).await;
 
                         let payload = crate::server_payload(param.size as usize);
                         yield StreamingOutputCallResponse { payload: Some(payload) };

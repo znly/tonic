@@ -1,3 +1,4 @@
+use futures::TryFutureExt;
 use tonic::{transport::Server, Request, Response, Status};
 
 use hello_world::greeter_server::{Greeter, GreeterServer};
@@ -36,9 +37,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match listenfd::ListenFd::from_env().take_tcp_listener(0)? {
         Some(listener) => {
-            let mut listener = tokio::net::TcpListener::from_std(listener)?;
+            let incoming = {
+                let listener = tokio::net::TcpListener::from_std(listener)?;
 
-            server.serve_with_incoming(listener.incoming()).await?;
+                async_stream::stream! {
+                    while let item = listener.accept().map_ok(|(tcp, _)| tcp).await {
+                        yield item;
+                    }
+                }
+            };
+
+            server.serve_with_incoming(incoming).await?;
         }
         None => {
             server.serve(addr).await?;
