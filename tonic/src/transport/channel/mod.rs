@@ -214,3 +214,34 @@ impl fmt::Debug for ResponseFuture {
         f.debug_struct("ResponseFuture").finish()
     }
 }
+
+// impl AsyncRead for Channel {
+//     fn poll_read(
+//         self: Pin<&mut Self>,
+//         cx: &mut Context<'_>,
+//         buf: &mut [u8],
+//     ) -> Poll<std::io::Result<usize>> {
+//         self.poll_read(cx, buf)
+//     }
+// }
+
+// impl AsyncWrite for Channel {
+//     fn poll_write(
+//         self: Pin<&mut Self>,
+//         cx: &mut Context<'_>,
+//         buf: &[u8],
+//     ) -> Poll<Result<usize, std::io::Error>> {
+//         self.poll_write(cx, buf)
+//     }
+
+//     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), std::io::Error>> {
+//         self.poll_flush(cx)
+//     }
+
+//     fn poll_shutdown(
+//         self: Pin<&mut Self>,
+//         cx: &mut Context<'_>,
+//     ) -> Poll<Result<(), std::io::Error>> {
+//         self.poll_shutdown(cx)
+//     }
+// }
