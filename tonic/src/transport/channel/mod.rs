@@ -182,7 +182,6 @@ impl Service<http::Request<BoxBody>> for Channel {
     type Response = http::Response<super::Body>;
     type Error = super::Error;
     type Future = ResponseFuture;
-    type ResponseBody = hyper::Body;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Service::poll_ready(&mut self.svc, cx).map_err(super::Error::from_source)
