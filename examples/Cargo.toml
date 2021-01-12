@@ -140,7 +140,7 @@ path = "src/hyper_warp_multiplex/server.rs"
 
 [dependencies]
 tonic = { path = "../tonic", features = ["tls", "gzip"] }
-prost = "0.6"
+prost = "0.7"
 tokio = { version = "0.2", features = ["rt-threaded", "time", "stream", "fs", "macros", "uds"] }
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 async-stream = "0.2"
@@ -160,7 +160,7 @@ prost-types = "0.6"
 hyper = "0.13"
 warp = { version = "0.2", default-features = false }
 http = "0.2"
-http-body = "0.3"
+http-body = "0.4"
 pin-project = "0.4.17"
 # Health example
 tonic-health = { path = "../tonic-health" }

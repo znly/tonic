@@ -43,7 +43,7 @@ gzip = ["flate2"]
 # harness = false
 
 [dependencies]
-bytes = "0.5"
+bytes = "1"
 futures-core = { version = "0.3", default-features = false }
 futures-util = { version = "0.3", default-features = false }
 tracing = "0.1"
@@ -56,18 +56,18 @@ percent-encoding = "2.0"
 tower-service = "0.3"
 tokio-util = { version = "0.3", features = ["codec"] }
 async-stream = "0.2"
-http-body = "0.3"
+http-body = "0.4"
 pin-project = "0.4.17"
 
 # prost
-prost1 = { package = "prost", version = "0.6", optional = true }
-prost-derive = { version = "0.6", optional = true }
+prost1 = { path="../../prost", package = "prost", optional = true } # { package = "prost", version = "0.6", optional = true }
+prost-derive = { path="../../prost/prost-derive", optional = true } # { version = "0.6", optional = true }
 
 # codegen
 async-trait = { version = "0.1.13", optional = true }
 
 # transport
-hyper = { version = "0.13.4", features = ["stream"], optional = true }
+hyper = { version = "0.14.2", features = ["stream", "client", "server", "http2", "tcp"], optional = true }
 tokio = { version = "0.2.13", features = ["tcp"], optional = true }
 tower = { version = "0.3", optional = true}
 tower-make = { version = "0.3", features = ["connect"] }

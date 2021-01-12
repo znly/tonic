@@ -16,6 +16,7 @@ use http::{
     uri::{InvalidUri, Uri},
     Request, Response,
 };
+#[cfg(feature = "transport")]
 use hyper::client::connect::Connection as HyperConnection;
 use std::{
     fmt,
@@ -178,9 +179,9 @@ impl Channel {
 }
 
 impl GrpcService<BoxBody> for Channel {
-    type ResponseBody = hyper::Body;
     type Error = super::Error;
     type Future = ResponseFuture;
+    type ResponseBody = hyper::Body;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         GrpcService::poll_ready(&mut self.svc, cx).map_err(super::Error::from_source)
