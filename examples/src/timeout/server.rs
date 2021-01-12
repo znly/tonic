@@ -1,3 +1,5 @@
+use std::time::Duration;
+use tokio::time::sleep;
 use tonic::{transport::Server, Request, Response, Status};
 
 use hello_world::greeter_server::{Greeter, GreeterServer};
@@ -18,6 +20,8 @@ impl Greeter for MyGreeter {
     ) -> Result<Response<HelloReply>, Status> {
         println!("Got a request from {:?}", request.remote_addr());
 
+        sleep(Duration::from_millis(5000)).await;
+
         let reply = hello_world::HelloReply {
             message: format!("Hello {}!", request.into_inner().name),
         };
@@ -32,20 +36,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("GreeterServer listening on {}", addr);
 
-    let server = Server::builder().add_service(GreeterServer::new(greeter));
-
-    match listenfd::ListenFd::from_env().take_tcp_listener(0)? {
-        Some(listener) => {
-            let listener = tokio_stream::wrappers::TcpListenerStream::new(
-                tokio::net::TcpListener::from_std(listener)?,
-            );
-
-            server.serve_with_incoming(listener).await?;
-        }
-        None => {
-            server.serve(addr).await?;
-        }
-    }
+    Server::builder()
+        .add_service(GreeterServer::new(greeter))
+        .serve(addr)
+        .await?;
 
     Ok(())
 }

@@ -10,7 +10,7 @@ pub use endpoint::Endpoint;
 pub use tls::ClientTlsConfig;
 
 use super::service::{Connection, DynamicServiceStream};
-use crate::{body::BoxBody, client::GrpcService};
+use crate::body::BoxBody;
 use bytes::Bytes;
 use http::{
     uri::{InvalidUri, Uri},
@@ -30,13 +30,13 @@ use tokio::{
     sync::mpsc::{channel, Sender},
 };
 
+use tower::balance::p2c::Balance;
 use tower::{
     buffer::{self, Buffer},
     discover::{Change, Discover},
     util::{BoxService, Either},
     Service,
 };
-use tower_balance::p2c::Balance;
 
 type Svc = Either<Connection, BoxService<Request<BoxBody>, Response<hyper::Body>, crate::Error>>;
 
@@ -110,7 +110,7 @@ impl Channel {
     /// This creates a [`Channel`] that will load balance accross all the
     /// provided endpoints.
     pub fn balance_list(list: impl Iterator<Item = Endpoint>) -> Self {
-        let (channel, mut tx) = Self::balance_channel(DEFAULT_BUFFER_SIZE);
+        let (channel, tx) = Self::balance_channel(DEFAULT_BUFFER_SIZE);
         list.for_each(|endpoint| {
             tx.try_send(Change::Insert(endpoint.uri.clone(), endpoint))
                 .unwrap();
@@ -167,9 +167,9 @@ impl Channel {
     where
         D: Discover<Service = Connection> + Unpin + Send + 'static,
         D::Error: Into<crate::Error>,
-        D::Key: Send + Clone,
+        D::Key: Hash + Send + Clone,
     {
-        let svc = Balance::from_entropy(discover);
+        let svc = Balance::new(discover);
 
         let svc = BoxService::new(svc);
         let svc = Buffer::new(Either::B(svc), buffer_size);
@@ -178,17 +178,19 @@ impl Channel {
     }
 }
 
-impl GrpcService<BoxBody> for Channel {
+impl Service<http::Request<BoxBody>> for Channel {
+    type Response = http::Response<super::Body>;
     type Error = super::Error;
     type Future = ResponseFuture;
     type ResponseBody = hyper::Body;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        GrpcService::poll_ready(&mut self.svc, cx).map_err(super::Error::from_source)
+        Service::poll_ready(&mut self.svc, cx).map_err(super::Error::from_source)
     }
 
-    fn call(&mut self, request: Request<BoxBody>) -> Self::Future {
-        let inner = GrpcService::call(&mut self.svc, request);
+    fn call(&mut self, request: http::Request<BoxBody>) -> Self::Future {
+        let inner = Service::call(&mut self.svc, request);
+
         ResponseFuture { inner }
     }
 }
@@ -214,34 +216,3 @@ impl fmt::Debug for ResponseFuture {
         f.debug_struct("ResponseFuture").finish()
     }
 }
-
-// impl AsyncRead for Channel {
-//     fn poll_read(
-//         self: Pin<&mut Self>,
-//         cx: &mut Context<'_>,
-//         buf: &mut [u8],
-//     ) -> Poll<std::io::Result<usize>> {
-//         self.poll_read(cx, buf)
-//     }
-// }
-
-// impl AsyncWrite for Channel {
-//     fn poll_write(
-//         self: Pin<&mut Self>,
-//         cx: &mut Context<'_>,
-//         buf: &[u8],
-//     ) -> Poll<Result<usize, std::io::Error>> {
-//         self.poll_write(cx, buf)
-//     }
-
-//     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), std::io::Error>> {
-//         self.poll_flush(cx)
-//     }
-
-//     fn poll_shutdown(
-//         self: Pin<&mut Self>,
-//         cx: &mut Context<'_>,
-//     ) -> Poll<Result<(), std::io::Error>> {
-//         self.poll_shutdown(cx)
-//     }
-// }

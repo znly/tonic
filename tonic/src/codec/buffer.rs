@@ -1,4 +1,5 @@
-use bytes::{buf::UninitSlice, Buf, BufMut, BytesMut};
+use bytes::buf::UninitSlice;
+use bytes::{Buf, BufMut, BytesMut};
 
 /// A specialized buffer to decode gRPC messages from.
 #[derive(Debug)]
@@ -27,7 +28,7 @@ impl Buf for DecodeBuf<'_> {
 
     #[inline]
     fn chunk(&self) -> &[u8] {
-        let ret = self.buf.bytes();
+        let ret = self.buf.chunk();
 
         if ret.len() > self.len {
             &ret[..self.len]
@@ -91,7 +92,7 @@ mod tests {
 
         assert_eq!(buf.len, 20);
         assert_eq!(buf.remaining(), 20);
-        assert_eq!(buf.bytes().len(), 20);
+        assert_eq!(buf.chunk().len(), 20);
 
         buf.advance(10);
         assert_eq!(buf.remaining(), 10);
@@ -99,9 +100,9 @@ mod tests {
         let mut out = [0; 5];
         buf.copy_to_slice(&mut out);
         assert_eq!(buf.remaining(), 5);
-        assert_eq!(buf.bytes().len(), 5);
+        assert_eq!(buf.chunk().len(), 5);
 
-        assert_eq!(buf.to_bytes().len(), 5);
+        assert_eq!(buf.copy_to_bytes(5).len(), 5);
         assert!(!buf.has_remaining());
     }
 

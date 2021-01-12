@@ -315,7 +315,7 @@ uses [async-trait] internally. You can learn more about `async fn` in traits in 
 
 [cargo book]: https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
 [async-trait]: https://github.com/dtolnay/async-trait
-[async book]: https://rust-lang.github.io/async-book/07_workarounds/06_async_in_traits.html
+[async book]: https://rust-lang.github.io/async-book/07_workarounds/05_async_in_traits.html
 
 ### Server state
 Our service needs access to an immutable list of features. When the server starts, we are going to
@@ -702,7 +702,7 @@ use futures_util::stream;
 ```rust
 async fn run_record_route(client: &mut RouteGuideClient<Channel>) -> Result<(), Box<dyn Error>> {
     let mut rng = rand::thread_rng();
-    let point_count: i32 = rng.gen_range(2, 100);
+    let point_count: i32 = rng.gen_range(2..100);
 
     let mut points = vec![];
     for _ in 0..=point_count {
@@ -723,8 +723,8 @@ async fn run_record_route(client: &mut RouteGuideClient<Channel>) -> Result<(), 
 
 ```rust
 fn random_point(rng: &mut ThreadRng) -> Point {
-    let latitude = (rng.gen_range(0, 180) - 90) * 10_000_000;
-    let longitude = (rng.gen_range(0, 360) - 180) * 10_000_000;
+    let latitude = (rng.gen_range(0..180) - 90) * 10_000_000;
+    let longitude = (rng.gen_range(0..360) - 180) * 10_000_000;
     Point {
         latitude,
         longitude,
