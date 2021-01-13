@@ -43,6 +43,7 @@ $ git clone https://github.com/hyperium/tonic.git
 ```
 
 Change your current directory to Tonic's repository root:
+
 ```shell
 $ cd tonic
 ```
@@ -54,11 +55,13 @@ $ rustup component add rustfmt
 ```
 
 Run the server
+
 ```shell
 $ cargo run --bin routeguide-server
 ```
 
 In a separate shell, run the client
+
 ```shell
 $ cargo run --bin routeguide-client
 ```
@@ -74,7 +77,6 @@ NOTE = RouteNote { location: Some(Point { latitude: 409146139, longitude: -74618
 If you scroll up you should see the output of the other 3 request types: simple rpc, server-side
 streaming and client-side streaming.
 
-
 ## Project setup
 
 We will develop our example from scratch in a new crate:
@@ -84,10 +86,9 @@ $ cargo new routeguide
 $ cd routeguide
 ```
 
-
 ## Defining the service
 
-Our first step is to define the gRPC *service* and the method *request* and *response* types using
+Our first step is to define the gRPC _service_ and the method _request_ and _response_ types using
 [protocol buffers]. We will keep our `.proto` files in a directory in our crate's root.
 Note that Tonic does not really care where our `.proto` definitions live. We will see how to use
 different [code generation configuration](#tonic-build) later in the tutorial.
@@ -111,17 +112,19 @@ Then you define `rpc` methods inside your service definition, specifying their r
 types. gRPC lets you define four kinds of service method, all of which are used in the `RouteGuide`
 service:
 
-- A *simple RPC* where the client sends a request to the server and waits for a response to come
-back, just like a normal function call.
+- A _simple RPC_ where the client sends a request to the server and waits for a response to come
+  back, just like a normal function call.
+
 ```proto
    // Obtains the feature at a given position.
    rpc GetFeature(Point) returns (Feature) {}
 ```
 
-- A *server-side streaming RPC* where the client sends a request to the server and gets a stream
-to read a sequence of messages back. The client reads from the returned stream until there are
-no more messages. As you can see in our example, you specify a server-side streaming method by
-placing the `stream` keyword before the *response* type.
+- A _server-side streaming RPC_ where the client sends a request to the server and gets a stream
+  to read a sequence of messages back. The client reads from the returned stream until there are
+  no more messages. As you can see in our example, you specify a server-side streaming method by
+  placing the `stream` keyword before the _response_ type.
+
 ```proto
   // Obtains the Features available within the given Rectangle.  Results are
   // streamed rather than returned at once (e.g. in a response message with a
@@ -130,22 +133,24 @@ placing the `stream` keyword before the *response* type.
   rpc ListFeatures(Rectangle) returns (stream Feature) {}
 ```
 
-- A *client-side streaming RPC* where the client writes a sequence of messages and sends them to
-the server. Once the client has finished writing the messages, it waits for the server to read them
-all and return its response. You specify a client-side streaming method by placing the `stream`
-keyword before the *request* type.
+- A _client-side streaming RPC_ where the client writes a sequence of messages and sends them to
+  the server. Once the client has finished writing the messages, it waits for the server to read them
+  all and return its response. You specify a client-side streaming method by placing the `stream`
+  keyword before the _request_ type.
+
 ```proto
   // Accepts a stream of Points on a route being traversed, returning a
   // RouteSummary when traversal is completed.
   rpc RecordRoute(stream Point) returns (RouteSummary) {}
 ```
 
-- A *bidirectional streaming RPC* where both sides send a sequence of messages. The two streams
-operate independently, so clients and servers can read and write in whatever
-order they like: for example, the server could wait to receive all the client messages before
-writing its responses, or it could alternately read a message then write a message, or some other
-combination of reads and writes. The order of messages in each stream is preserved. You specify
-this type of method by placing the `stream` keyword before both the request and the response.
+- A _bidirectional streaming RPC_ where both sides send a sequence of messages. The two streams
+  operate independently, so clients and servers can read and write in whatever
+  order they like: for example, the server could wait to receive all the client messages before
+  writing its responses, or it could alternately read a message then write a message, or some other
+  combination of reads and writes. The order of messages in each stream is preserved. You specify
+  this type of method by placing the `stream` keyword before both the request and the response.
+
 ```proto
   // Accepts a stream of RouteNotes sent while a route is being traversed,
   // while receiving other RouteNotes (e.g. from other users).
@@ -154,6 +159,7 @@ this type of method by placing the `stream` keyword before both the request and 
 
 Our `.proto` file also contains protocol buffer message type definitions for all the request and
 response types used in our service methods - for example, here's the `Point` message type:
+
 ```proto
 // Points are represented as latitude-longitude pairs in the E7 representation
 // (degrees multiplied by 10**7 and rounded to the nearest integer).
@@ -187,7 +193,7 @@ futures-util = "0.3"
 tokio = { version = "0.2", features = ["macros", "sync", "stream", "time"] }
 
 async-stream = "0.2"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0.118", features = ["derive"] }
 serde_json = "1.0"
 rand = "0.7"
 
@@ -217,7 +223,7 @@ That's it. The generated code contains:
 If your are curious as to where the generated files are, keep reading. The mystery will be revealed
 soon! We can now move on to the fun part.
 
-[PROST!]: https://github.com/danburkert/prost
+[prost!]: https://github.com/danburkert/prost
 
 ## Creating the server
 
@@ -312,12 +318,12 @@ impl RouteGuide for RouteGuideService {
 **Note**: The `tonic::async_trait` attribute macro adds support for async functions in traits. It
 uses [async-trait] internally. You can learn more about `async fn` in traits in the [async book].
 
-
 [cargo book]: https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
 [async-trait]: https://github.com/dtolnay/async-trait
 [async book]: https://rust-lang.github.io/async-book/07_workarounds/05_async_in_traits.html
 
 ### Server state
+
 Our service needs access to an immutable list of features. When the server starts, we are going to
 deserialize them from a json file and keep them around as our only piece of shared state:
 
@@ -339,7 +345,7 @@ You can find our example json data in [examples/data/route_guide_db.json][route-
 the corresponding `data` module to load and deserialize it in
 [examples/routeguide/data.rs][data-module].
 
-**Note:** If you are following along, you'll need to change the data file's path  from
+**Note:** If you are following along, you'll need to change the data file's path from
 `examples/data/route_guide_db.json` to `data/route_guide_db.json`.
 
 Next, we need to implement `Hash` and `Eq` for `Point`, so we can use point values as map keys:
@@ -372,14 +378,16 @@ when performing feature lookups. You can find them in
 [in-range-fn]: https://github.com/hyperium/tonic/blob/master/examples/src/routeguide/server.rs#L174
 
 #### Request and Response types
+
 All our service methods receive a `tonic::Request<T>` and return a
 `Result<tonic::Response<T>, tonic::Status>`. The concrete type of `T` depends on how our methods
-are declared in our *service* `.proto` definition. It can be either:
+are declared in our _service_ `.proto` definition. It can be either:
 
 - A single value, e.g `Point`, `Rectangle`, or even a message type that includes a repeated field.
 - A stream of values, e.g. `impl Stream<Item = Result<Feature, tonic::Status>>`.
 
 #### Simple RPC
+
 Let's look at the simplest method first, `get_feature`, which just gets a `tonic::Request<Point>`
 from the client and tries to find a feature at the given `Point`. If no feature is found, it returns
 an empty one.
@@ -396,8 +404,8 @@ async fn get_feature(&self, request: Request<Point>) -> Result<Response<Feature>
 }
 ```
 
-
 #### Server-side streaming RPC
+
 Now let's look at one of our streaming RPCs. `list_features` is a server-side streaming RPC, so we
 need to send back multiple `Feature`s to our client.
 
@@ -430,8 +438,8 @@ the features that satisfy our constraints into the channel.
 
 The `Stream` half of the channel is returned to the caller, wrapped in a `tonic::Response`.
 
-
 #### Client-side streaming RPC
+
 Now let's look at something a little more complicated: the client-side streaming method
 `record_route`, where we get a stream of `Point`s from the client and return a single `RouteSummary`
 with information about their trip. As you can see, this time the method receives a
@@ -482,8 +490,9 @@ When there are no more `Points` in our stream, we return the `RouteSummary` wrap
 `tonic::Response`.
 
 #### Bidirectional streaming RPC
+
 Finally, let's look at our bidirectional streaming RPC `route_chat`, which receives a stream
-of `RouteNote`s and returns  a stream of `RouteNote`s.
+of `RouteNote`s and returns a stream of `RouteNote`s.
 
 ```rust
 use std::collections::HashMap;
@@ -564,12 +573,12 @@ among other things, is that we have a flexible and composable stack we can build
 for example, add an [interceptor][authentication-example] to process requests before they reach our service
 methods.
 
-
-[Tower]: https://github.com/tower-rs
+[tower]: https://github.com/tower-rs
 [hyper]: https://github.com/hyperium/hyper
 [authentication-example]: https://github.com/hyperium/tonic/blob/master/examples/src/authentication/server.rs#L56
 
 <a name="client"></a>
+
 ## Creating the client
 
 In this section, we'll look at creating a Tonic client for our `RouteGuide` service. You can see our
@@ -595,7 +604,7 @@ $ mv src/main.rs src/server.rs
 $ touch src/client.rs
 ```
 
-To call service methods, we first need to create a gRPC *client* to communicate with the server. Like in the server
+To call service methods, we first need to create a gRPC _client_ to communicate with the server. Like in the server
 case, we'll start by bringing the generated code into scope:
 
 ```rust
@@ -622,12 +631,13 @@ needs to manage internal state.
 
 [routeguide-client]: https://github.com/hyperium/tonic/blob/master/examples/src/routeguide/client.rs
 
-
 ### Calling service methods
+
 Now let's look at how we call our service methods. Note that in Tonic, RPCs are asynchronous,
 which means that RPC calls need to be `.await`ed.
 
 #### Simple RPC
+
 Calling the simple RPC `get_feature` is as straightforward as calling a local method:
 
 ```rust
@@ -644,10 +654,12 @@ let response = client
 
 println!("RESPONSE = {:?}", response);
 ```
+
 We call the `get_feature` client method, passing a single `Point` value wrapped in a
 `tonic::Request`. We get a `Result<tonic::Response<Feature>, tonic::Status>` back.
 
 #### Server-side streaming RPC
+
 Here's where we call the server-side streaming method `list_features`, which returns a stream of
 geographical `Feature`s.
 
@@ -690,6 +702,7 @@ server's responses to a response protocol buffer object (in this case a `Feature
 no more messages left in the stream.
 
 #### Client-side streaming RPC
+
 The client-side streaming method `record_route` takes a stream of `Point`s and returns a single
 `RouteSummary` value.
 
@@ -737,7 +750,6 @@ it into a `Stream` using the `futures::stream::iter` function. This is a cheap a
 a stream suitable for passing into our service method. The resulting stream is then wrapped in a
 `tonic::Request`.
 
-
 #### Bidirectional streaming RPC
 
 Finally, let's look at our bidirectional streaming RPC. The `route_chat` method takes a stream
@@ -779,6 +791,7 @@ async fn run_route_chat(client: &mut RouteGuideClient<Channel>) -> Result<(), Bo
     Ok(())
 }
 ```
+
 In this case, we use the [async-stream] crate to generate our outbound stream, yielding
 `RouteNote` values in one second intervals. We then iterate over the stream returned by
 the server, printing each value in the stream.
@@ -786,11 +799,13 @@ the server, printing each value in the stream.
 ## Try it out!
 
 ### Run the server
+
 ```shell
 $ cargo run --bin routeguide-server
 ```
 
 ### Run the client
+
 ```shell
 $ cargo run --bin routeguide-client
 ```
@@ -798,6 +813,7 @@ $ cargo run --bin routeguide-client
 ## Appendix
 
 <a name="tonic-build"></a>
+
 ### tonic_build configuration
 
 Tonic's default code generation configuration is convenient for self contained examples and small
@@ -806,7 +822,7 @@ projects. However, there are some cases when we need a slightly different workfl
 - When building rust clients and servers in different crates.
 - When building a rust client or server (or both) as part of a larger, multi-language project.
 - When we want editor support for the generate code and our editor does not index the generated
-files in the default location.
+  files in the default location.
 
 More generally, whenever we want to keep our `.proto` definitions in a central place and generate
 code for different crates or different languages, the default configuration is not enough.
@@ -814,8 +830,8 @@ code for different crates or different languages, the default configuration is n
 Luckily, `tonic_build` can be configured to fit whatever workflow we need. Here are just two
 possibilities:
 
-1)  We can keep our `.proto` definitions in a separate crate and generate our code on demand, as
-opposed to at build time, placing the resulting modules wherever we need them.
+1.  We can keep our `.proto` definitions in a separate crate and generate our code on demand, as
+    opposed to at build time, placing the resulting modules wherever we need them.
 
 `main.rs`
 
@@ -832,6 +848,5 @@ fn main() {
 On `cargo run`, this will generate code for the client only, and place the resulting file in
 `another_crate/src/pb`.
 
-2) Similarly, we could also keep the `.proto` definitions in a separate crate and then use that
-crate as a direct dependency wherever we need it.
-
+2. Similarly, we could also keep the `.proto` definitions in a separate crate and then use that
+   crate as a direct dependency wherever we need it.
