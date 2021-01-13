@@ -2,8 +2,10 @@ use super::{client, server};
 use proc_macro2::TokenStream;
 use prost_build::{Config, Method, Service};
 use quote::ToTokens;
-use std::io;
-use std::path::{Path, PathBuf};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 
 /// Configure `tonic-build` code generation.
 ///
@@ -13,6 +15,7 @@ pub fn configure() -> Builder {
         build_client: true,
         build_server: true,
         out_dir: None,
+        file_descriptor_set_path: None,
         extern_path: Vec::new(),
         field_attributes: Vec::new(),
         type_attributes: Vec::new(),
@@ -42,10 +45,10 @@ pub fn compile_protos(proto: impl AsRef<Path>) -> io::Result<()> {
 const PROST_CODEC_PATH: &str = "tonic::codec::ProstCodec";
 
 impl crate::Service for Service {
-    const CODEC_PATH: &'static str = PROST_CODEC_PATH;
-
-    type Method = Method;
     type Comment = String;
+    type Method = Method;
+
+    const CODEC_PATH: &'static str = PROST_CODEC_PATH;
 
     fn name(&self) -> &str {
         &self.name
@@ -69,8 +72,9 @@ impl crate::Service for Service {
 }
 
 impl crate::Method for Method {
-    const CODEC_PATH: &'static str = PROST_CODEC_PATH;
     type Comment = String;
+
+    const CODEC_PATH: &'static str = PROST_CODEC_PATH;
 
     fn name(&self) -> &str {
         &self.name
@@ -184,7 +188,7 @@ pub struct Builder {
     pub(crate) field_attributes: Vec<(String, String)>,
     pub(crate) type_attributes: Vec<(String, String)>,
     pub(crate) proto_path: String,
-
+    pub(crate) file_descriptor_set_path: Option<PathBuf>,
     out_dir: Option<PathBuf>,
     #[cfg(feature = "rustfmt")]
     format: bool,
@@ -215,6 +219,14 @@ impl Builder {
     /// Defaults to the `OUT_DIR` environment variable.
     pub fn out_dir(mut self, out_dir: impl AsRef<Path>) -> Self {
         self.out_dir = Some(out_dir.as_ref().to_path_buf());
+        self
+    }
+
+    /// Set the file_descriptor_set_path to generate a file descriptor set to.
+    ///
+    /// Defaults to `None`, which means no file descriptor set will be generated.
+    pub fn file_descriptor_set_path(mut self, file_descriptor_set_path: impl AsRef<Path>) -> Self {
+        self.file_descriptor_set_path = Some(file_descriptor_set_path.as_ref().to_path_buf());
         self
     }
 
@@ -263,7 +275,11 @@ impl Builder {
     where
         P: AsRef<Path>,
     {
-        self.compile_with_config(Config::new(), protos, includes)
+        let mut config = Config::new();
+        if let Some(fds) = self.file_descriptor_set_path.as_ref() {
+            config.file_descriptor_set_path(fds);
+        };
+        self.compile_with_config(config, protos, includes)
     }
 
     /// Compile the .proto files and execute code generation using a
