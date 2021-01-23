@@ -78,7 +78,7 @@ where
             }
         };
 
-        let request = t!(self.intercept_request(request));
+        let request = t!(self.intercept_request(request).await);
         let compression = Compression::response_from_metadata(request.metadata());
 
         let response = service
@@ -109,7 +109,7 @@ where
             }
         };
 
-        let request = t!(self.intercept_request(request));
+        let request = t!(self.intercept_request(request).await);
         let compression = Compression::response_from_metadata(request.metadata());
         let response = service.call(request).await;
 
@@ -128,7 +128,7 @@ where
         B::Error: Into<crate::Error> + Send + 'static,
     {
         let request = self.map_request_streaming(req);
-        let request = t!(self.intercept_request(request));
+        let request = t!(self.intercept_request(request).await);
         let compression = Compression::response_from_metadata(request.metadata());
         let response = service
             .call(request)
@@ -150,7 +150,7 @@ where
         B::Error: Into<crate::Error> + Send,
     {
         let request = self.map_request_streaming(req);
-        let request = t!(self.intercept_request(request));
+        let request = t!(self.intercept_request(request).await);
         let compression = Compression::response_from_metadata(request.metadata());
         let response = service.call(request).await;
         self.map_response(response, compression)
@@ -225,9 +225,12 @@ where
         }
     }
 
-    fn intercept_request<A>(&self, req: Request<A>) -> Result<Request<A>, http::Response<BoxBody>> {
+    async fn intercept_request<A>(
+        &self,
+        req: Request<A>,
+    ) -> Result<Request<A>, http::Response<BoxBody>> {
         if let Some(interceptor) = &self.interceptor {
-            match interceptor.call(req) {
+            match interceptor.call(req).await {
                 Ok(req) => Ok(req),
                 Err(status) => Err(status.to_http()),
             }

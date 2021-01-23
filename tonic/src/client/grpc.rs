@@ -153,7 +153,7 @@ impl<T> Grpc<T> {
         M2: Send + Sync + 'static,
     {
         let request = if let Some(interceptor) = &self.interceptor {
-            interceptor.call(request)?
+            interceptor.call(request).await?
         } else {
             request
         };

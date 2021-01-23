@@ -295,7 +295,7 @@ fn generate_unary<T: Method>(
 
         let inner = self.inner.clone();
         let fut = async move {
-            let interceptor = inner.1.clone();
+            let interceptor = inner.1;
             let inner = inner.0;
             let method = #service_ident(inner);
             let codec = #codec_name::default();

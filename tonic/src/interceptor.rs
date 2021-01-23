@@ -1,8 +1,10 @@
 use crate::{Request, Status};
+use futures_core::future::BoxFuture;
 use std::{fmt, sync::Arc};
 
-type InterceptorFn =
-    Arc<dyn Fn(Request<()>) -> Result<Request<()>, Status> + Send + Sync + 'static>;
+type InterceptorFn = Arc<
+    dyn Fn(Request<()>) -> BoxFuture<'static, Result<Request<()>, Status>> + Send + Sync + 'static,
+>;
 
 /// Represents a gRPC interceptor.
 ///
@@ -24,18 +26,22 @@ pub struct Interceptor {
 
 impl Interceptor {
     /// Create a new `Interceptor` from the provided function.
-    pub fn new(
-        f: impl Fn(Request<()>) -> Result<Request<()>, Status> + Send + Sync + 'static,
-    ) -> Self {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: Fn(Request<()>) -> BoxFuture<'static, Result<Request<()>, Status>>
+            + Send
+            + Sync
+            + 'static,
+    {
         Interceptor { f: Arc::new(f) }
     }
 
-    pub(crate) fn call<T>(&self, req: Request<T>) -> Result<Request<T>, Status> {
+    pub(crate) async fn call<T>(&self, req: Request<T>) -> Result<Request<T>, Status> {
         let (metadata, ext, message) = req.into_parts();
 
         let temp_req = Request::from_parts(metadata, ext, ());
 
-        let (metadata, ext, _) = (self.f)(temp_req)?.into_parts();
+        let (metadata, ext, _) = (self.f)(temp_req).await?.into_parts();
 
         Ok(Request::from_parts(metadata, ext, message))
     }
@@ -43,7 +49,7 @@ impl Interceptor {
 
 impl<F> From<F> for Interceptor
 where
-    F: Fn(Request<()>) -> Result<Request<()>, Status> + Send + Sync + 'static,
+    F: Fn(Request<()>) -> BoxFuture<'static, Result<Request<()>, Status>> + Send + Sync + 'static,
 {
     fn from(f: F) -> Self {
         Interceptor::new(f)
