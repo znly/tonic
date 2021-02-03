@@ -1,4 +1,5 @@
 use crate::transport::Certificate;
+#[cfg(feature = "transport")]
 use hyper::server::conn::AddrStream;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;

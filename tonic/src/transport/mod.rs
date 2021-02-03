@@ -86,6 +86,7 @@
 //!
 //! [rustls]: https://docs.rs/rustls/0.16.0/rustls/
 
+#[cfg(feature = "transport")]
 pub mod channel;
 pub mod server;
 

@@ -16,6 +16,7 @@ use http::{
     uri::{InvalidUri, Uri},
     Request, Response,
 };
+#[cfg(feature = "transport")]
 use hyper::client::connect::Connection as HyperConnection;
 use std::{
     fmt,
