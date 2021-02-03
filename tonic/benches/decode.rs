@@ -14,8 +14,7 @@ macro_rules! bench {
     };
     ($name:ident, $message_size:expr, $chunk_size:expr, $message_count:expr, $encoding:expr) => {
         fn $name(b: &mut Bencher) {
-            let mut rt = tokio::runtime::Builder::new()
-                .basic_scheduler()
+            let rt = tokio::runtime::Builder::new_multi_thread()
                 .build()
                 .expect("runtime");
 
@@ -107,7 +106,7 @@ impl Decoder for MockDecoder {
     type Error = Status;
 
     fn decode(&mut self, buf: &mut DecodeBuf<'_>) -> Result<Option<Self::Item>, Self::Error> {
-        let out = Vec::from(buf.bytes());
+        let out = Vec::from(buf.chunk());
         buf.advance(self.message_size);
         Ok(Some(out))
     }
@@ -121,7 +120,6 @@ fn make_payload(message_length: usize, message_count: usize, encoding: Option<&s
     let msg_buf = match encoding {
         #[cfg(feature = "gzip")]
         Some(encoding) if encoding == "gzip" => {
-            use bytes::buf::BufMutExt;
             let mut reader =
                 flate2::read::GzEncoder::new(&raw_msg[..], flate2::Compression::best());
             let mut writer = BytesMut::new().writer();
