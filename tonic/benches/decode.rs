@@ -120,7 +120,6 @@ fn make_payload(message_length: usize, message_count: usize, encoding: Option<&s
     let msg_buf = match encoding {
         #[cfg(feature = "gzip")]
         Some(encoding) if encoding == "gzip" => {
-            use bytes::buf::BufMutExt;
             let mut reader =
                 flate2::read::GzEncoder::new(&raw_msg[..], flate2::Compression::best());
             let mut writer = BytesMut::new().writer();
