@@ -313,7 +313,7 @@ impl Status {
         Status::try_from_error(err).unwrap_or_else(|| Status::new(Code::Unknown, err.to_string()))
     }
 
-    fn try_from_error(err: &(dyn Error + 'static)) -> Option<Status> {
+    pub(crate) fn try_from_error(err: &(dyn Error + 'static)) -> Option<Status> {
         let mut cause = Some(err);
 
         while let Some(err) = cause {
@@ -330,6 +330,10 @@ impl Status {
             {
                 if let Some(h2) = err.downcast_ref::<h2::Error>() {
                     return Some(Status::from_h2_error(h2));
+                }
+
+                if let Some(timeout) = err.downcast_ref::<crate::transport::TimeoutExpired>() {
+                    return Some(Status::cancelled(timeout.to_string()));
                 }
             }
 
@@ -380,7 +384,8 @@ impl Status {
         Status::from_error(&*err.into())
     }
 
-    pub(crate) fn from_header_map(header_map: &HeaderMap) -> Option<Status> {
+    /// Extract a `Status` from a hyper `HeaderMap`.
+    pub fn from_header_map(header_map: &HeaderMap) -> Option<Status> {
         header_map.get(GRPC_STATUS_HEADER_CODE).map(|code| {
             let code = Code::from_bytes(code.as_ref());
             let error_message = header_map
@@ -661,7 +666,10 @@ impl Code {
         Code::from(i)
     }
 
-    pub(crate) fn from_bytes(bytes: &[u8]) -> Code {
+    /// Convert the string representation of a `Code` (as stored, for example, in the `grpc-status`
+    /// header in a response) into a `Code`. Returns `Code::Unknown` if the code string is not a
+    /// valid gRPC status code.
+    pub fn from_bytes(bytes: &[u8]) -> Code {
         match bytes.len() {
             1 => match bytes[0] {
                 b'0' => Code::Ok,

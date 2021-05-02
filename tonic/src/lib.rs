@@ -20,7 +20,7 @@
 //! implementation based on [`hyper`], [`tower`] and [`tokio`]. Enabled by default.
 //! - `codegen`: Enables all the required exports and optional dependencies required
 //! for [`tonic-build`]. Enabled by default.
-//! - `tls`: Enables the `rustls` based TLS options for the `transport` feature`. Not
+//! - `tls`: Enables the `rustls` based TLS options for the `transport` feature. Not
 //! enabled by default.
 //! - `tls-roots`: Adds system trust roots to `rustls`-based gRPC clients using the
 //! `rustls-native-certs` crate. Not enabled by default. `tls` must be enabled to use
@@ -68,10 +68,11 @@
     rust_2018_idioms,
     unreachable_pub
 )]
+#![deny(broken_intra_doc_links)]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/tokio-rs/website/master/public/img/icons/tonic.svg"
 )]
-#![doc(html_root_url = "https://docs.rs/tonic/0.4.0")]
+#![doc(html_root_url = "https://docs.rs/tonic/0.4.3")]
 #![doc(issue_tracker_base_url = "https://github.com/hyperium/tonic/issues/")]
 #![doc(test(no_crate_inject, attr(deny(rust_2018_idioms))))]
 #![cfg_attr(docsrs, feature(doc_cfg))]

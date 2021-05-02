@@ -131,6 +131,10 @@ name = "health-server"
 path = "src/health/server.rs"
 
 [[bin]]
+name = "reflection-server"
+path = "src/reflection/server.rs"
+
+[[bin]]
 name = "autoreload-server"
 path = "src/autoreload/server.rs"
 
@@ -147,11 +151,11 @@ name = "hyper-warp-multiplex-server"
 path = "src/hyper_warp_multiplex/server.rs"
 
 [dependencies]
-async-stream = "0.3"
+tonic = { path = "../tonic", features = ["tls", "gzip"] }
 prost = "0.7"
 tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
 tokio-stream = { version =  "0.1", features = ["net"] }
-tonic = { path = "../tonic", features = ["tls", "gzip"] }
+async-stream = "0.3"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 tower = { version = "0.4" }
 # Required for routeguide
@@ -173,6 +177,8 @@ http-body = "0.4"
 pin-project = "1.0"
 # Health example
 tonic-health = { path = "../tonic-health" }
+# Reflection example
+tonic-reflection = { path = "../tonic-reflection" }
 listenfd = "0.3"
 
 [build-dependencies]
