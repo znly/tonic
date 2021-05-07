@@ -15,15 +15,18 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/tokio-rs/website/master/public/img/icons/tonic.svg"
 )]
-#![doc(html_root_url = "https://docs.rs/tonic/0.2.0")]
+#![deny(broken_intra_doc_links)]
+#![doc(html_root_url = "https://docs.rs/tonic-health/0.3.1")]
 #![doc(issue_tracker_base_url = "https://github.com/hyperium/tonic/issues/")]
 #![doc(test(no_crate_inject, attr(deny(rust_2018_idioms))))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::fmt::{Display, Formatter};
 
-mod proto {
+/// Generated protobuf types from the `grpc.healthy.v1` package.
+pub mod proto {
     #![allow(unreachable_pub)]
+    #![allow(missing_docs)]
     tonic::include_proto!("grpc.health.v1");
 }
 

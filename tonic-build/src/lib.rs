@@ -67,7 +67,8 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/tokio-rs/website/master/public/img/icons/tonic.svg"
 )]
-#![doc(html_root_url = "https://docs.rs/tonic-build/0.4.0")]
+#![deny(broken_intra_doc_links)]
+#![doc(html_root_url = "https://docs.rs/tonic-build/0.4.2")]
 #![doc(issue_tracker_base_url = "https://github.com/hyperium/tonic/issues/")]
 #![doc(test(no_crate_inject, attr(deny(rust_2018_idioms))))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -147,7 +148,11 @@ pub trait Method {
     /// Get comments about this item.
     fn comment(&self) -> &[Self::Comment];
     /// Type name of request and response.
-    fn request_response_name(&self, proto_path: &str) -> (TokenStream, TokenStream);
+    fn request_response_name(
+        &self,
+        proto_path: &str,
+        compile_well_known_types: bool,
+    ) -> (TokenStream, TokenStream);
 }
 
 /// Format files under the out_dir with rustfmt
@@ -161,13 +166,14 @@ pub fn fmt(out_dir: &str) {
         if !file.ends_with(".rs") {
             continue;
         }
-        let result = Command::new("rustfmt")
-            .arg("--emit")
-            .arg("files")
-            .arg("--edition")
-            .arg("2018")
-            .arg(format!("{}/{}", out_dir, file))
-            .output();
+        let result =
+            Command::new(std::env::var("RUSTFMT").unwrap_or_else(|_| "rustfmt".to_owned()))
+                .arg("--emit")
+                .arg("files")
+                .arg("--edition")
+                .arg("2018")
+                .arg(format!("{}/{}", out_dir, file))
+                .output();
 
         match result {
             Err(e) => {

@@ -193,6 +193,7 @@ impl<T> Streaming<T> {
                 }
             };
             let len = self.buf.get_u32() as usize;
+            self.buf.reserve(len);
 
             self.state = State::ReadBody {
                 compression: is_compressed,
@@ -271,16 +272,6 @@ impl<T> Stream for Streaming<T> {
             };
 
             if let Some(data) = chunk {
-                if data.remaining() > self.buf.remaining_mut() {
-                    let amt = if data.remaining() > BUFFER_SIZE {
-                        data.remaining()
-                    } else {
-                        BUFFER_SIZE
-                    };
-
-                    self.buf.reserve(amt);
-                }
-
                 self.buf.put(data);
             } else {
                 // FIXME: improve buf usage.
